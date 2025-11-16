@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.c": "c",
+        "kv_store.h": "c",
+        "stdio.h": "c",
+        "string.h": "c",
+        "assert.h": "c"
+    }
+}

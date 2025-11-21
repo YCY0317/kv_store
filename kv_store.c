@@ -49,7 +49,7 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
     char* value = tokens[2];
     memset(msg, 0, BUFFER_LENGTH);
     switch(cmd) {
-        case KVS_CMD_SET:
+        case KVS_CMD_SET: {
             int res = kvstore_array_set(key, value);
             if(!res) {
                 snprintf(msg, BUFFER_LENGTH, "SUCCESS");
@@ -58,7 +58,8 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
                 snprintf(msg, BUFFER_LENGTH, "FAILED");
             }
             break;
-        case KVS_CMD_GET:
+        }
+        case KVS_CMD_GET: {
             char* val = kvstore_array_get(key);
             if(val) {
                 snprintf(msg, BUFFER_LENGTH, "%s", val);
@@ -67,12 +68,33 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
                 snprintf(msg, BUFFER_LENGTH, "NO EXIST");
             }
             break;
-        case KVS_CMD_DEL:
-            printf("del\n");
+        }
+        case KVS_CMD_DEL: {
+            int res = kvstore_array_delete(key);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
             break;
-        case KVS_CMD_MOD:
-            printf("mod\n");
+        }
+        case KVS_CMD_MOD: {
+            int res = kvstore_array_modify(key, value);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
             break;
+        }
         default: {
             printf("cmd: %s\n", commands[cmd]);
             assert(0);
@@ -81,14 +103,14 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
 }
 
 int kvstore_request(struct conn_item *item) {
-    //printf("recv :%s\n", item->rbuffer);
+    LOG("recv :%s\n", item->rbuffer);
 
     char *msg = item->rbuffer;
     char *tokens[KVSTORE_MAX_TOKENS];
 
     int count = kvstore_split_token(msg, tokens);
     for(int idx=0; idx<count; idx++) {
-        printf("idx: %s\n", tokens[idx]);
+        LOG("idx: %s\n", tokens[idx]);
     }
 
     kvstore_parser_protocol(item, tokens, count);
@@ -102,7 +124,13 @@ int kvstore_response(void) {
 
 
 int main() {
+#if(ENABLE_NETWORK_SELECT == NETWORK_EPOLL)
     epoll_entry();
+#elif(ENABLE_NETWORK_SELECT == NETWORK_NTYCO)
+    ntyco_entry();
+#elif(ENABLE_NETWORK_SELECT == NETWORK_IOURING)
+
+#endif
     return 0;
 }
 

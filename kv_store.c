@@ -1,17 +1,26 @@
-
-
 #include "kv_store.h"
 
 #define KVSTORE_MAX_TOKENS 128
 
-const char *commands[] = {"SET", "GET", "DEL", "MOD"};
+const char *commands[] = {
+    "SET", "GET", "DEL", "MOD", "COUNT",
+    "RSET", "RGET", "RDEL", "RMOD", "RCOUNT"
+};
 enum {
     KVS_CMD_START = 0,
     KVS_CMD_SET = KVS_CMD_START ,
     KVS_CMD_GET,
     KVS_CMD_DEL,
     KVS_CMD_MOD,
-    KVS_CMD_COUNT
+    KVS_CMD_COUNT,
+
+    KVS_CMD_RSET,
+    KVS_CMD_RGET,
+    KVS_CMD_RDEL,
+    KVS_CMD_RMOD,
+    KVS_CMD_RCOUNT,
+
+    KVS_CMD_SIZE
 };
 
 void* kvstore_malloc(size_t size) {
@@ -20,6 +29,42 @@ void* kvstore_malloc(size_t size) {
 void kvstore_free(void* ptr) {
     return free(ptr);
 }
+
+#if ENABLE_ARRAY_KVENGINE
+int kvstore_array_set(char *key, char *value) {
+    return kvs_array_set(&Array, key, value);
+}
+char* kvstore_array_get(char *key) {
+    return kvs_array_get(&Array, key);
+}
+int kvstore_array_delete(char *key) {
+    return kvs_array_delete(&Array, key);
+}
+int kvstore_array_modify(char *key, char *value) {
+    return kvs_array_modify(&Array, key, value);
+}
+int kvstore_array_count(void) {
+    return kvs_array_count(&Array);
+}
+#endif
+
+#if ENABLE_RBTREE_KVENGINE
+int kvstore_rbtree_set(char *key, char *value) {
+    return kvs_rbtree_set(&Tree, key, value);
+}
+char* kvstore_rbtree_get(char *key) {
+    return kvs_rbtree_get(&Tree, key);
+}
+int kvstore_rbtree_delete(char *key) {
+    return kvs_rbtree_delete(&Tree, key);
+}
+int kvstore_rbtree_modify(char *key, char *value) {
+    return kvs_rbtree_modify(&Tree, key, value);
+}
+int kvstore_rbtree_count(void) {
+    return kvs_rbtree_count(&Tree);
+}
+#endif
 
 
 int kvstore_split_token(char *msg, char **tokens) {
@@ -40,7 +85,7 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
         return -1;
     
     int cmd=KVS_CMD_START;
-    for(cmd=KVS_CMD_START; cmd<KVS_CMD_COUNT; cmd++) {
+    for(cmd=KVS_CMD_START; cmd<KVS_CMD_SIZE; cmd++) {
         if(strcmp(commands[cmd], tokens[0]) == 0)
             break;
     }
@@ -95,6 +140,72 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
 			}
             break;
         }
+        case KVS_CMD_COUNT: {
+            int count = kvstore_array_count();
+            if (count < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "%d", count);
+			}
+            break;
+        }
+        case KVS_CMD_RSET: {
+            int res = kvstore_rbtree_set(key, value);
+            if(!res) {
+                snprintf(msg, BUFFER_LENGTH, "SUCCESS");
+            }
+            else {
+                snprintf(msg, BUFFER_LENGTH, "FAILED");
+            }
+            break;
+        }
+        case KVS_CMD_RGET: {
+            char* val = kvstore_rbtree_get(key);
+            if(val) {
+                snprintf(msg, BUFFER_LENGTH, "%s", val);
+            }
+            else {
+                snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+            }
+            break;
+        }
+        case KVS_CMD_RDEL: {
+            int res = kvstore_rbtree_delete(key);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
+            break;
+        }
+        case KVS_CMD_RMOD: {
+            int res = kvstore_rbtree_modify(key, value);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
+            break;
+        }
+        case KVS_CMD_RCOUNT: {
+            int count = kvstore_rbtree_count();
+            if (count < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "%d", count);
+			}
+            break;
+        }
         default: {
             printf("cmd: %s\n", commands[cmd]);
             assert(0);
@@ -119,11 +230,30 @@ int kvstore_request(struct conn_item *item) {
 
 int kvstore_response(void) {
 
+    return 0;
+}
+
+int init_kvengine(void) {
+#if ENABLE_ARRAY_KVENGINE
+    kvstore_array_create(&Array);
+#endif
+#if ENABLE_RBTREE_KVENGINE
+    kvstore_rbtree_create(&Tree);
+#endif
 
 }
 
+int exit_kvengine(void) {
+#if ENABLE_ARRAY_KVENGINE
+    kvstore_array_destory(&Array);
+#endif
+#if ENABLE_RBTREE_KVENGINE
+    kvstore_rbtree_destory(&Tree);
+#endif
+}
 
 int main() {
+    init_kvengine();
 #if(ENABLE_NETWORK_SELECT == NETWORK_EPOLL)
     epoll_entry();
 #elif(ENABLE_NETWORK_SELECT == NETWORK_NTYCO)
@@ -131,6 +261,8 @@ int main() {
 #elif(ENABLE_NETWORK_SELECT == NETWORK_IOURING)
 
 #endif
+
+    exit_kvengine();
     return 0;
 }
 

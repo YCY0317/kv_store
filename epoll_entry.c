@@ -1,13 +1,11 @@
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
+//#include <errno.h>
 #include <unistd.h>
-#include <sys/poll.h>
+//#include <sys/poll.h>
 #include <sys/epoll.h>
 #include <sys/time.h>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <netinet/in.h>
-#include <pthread.h>
+//#include <pthread.h>
 
 #include "kv_store.h"
 

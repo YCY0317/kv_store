@@ -40,8 +40,9 @@ extern int epoll_entry(void);
 extern int ntyco_entry(void);
 
 extern int kvstore_request(struct conn_item *item);
-
 extern int kvstore_response(void);
+extern int init_kvengine(void);
+extern int exit_kvengine(void);
 
 extern void* kvstore_malloc(size_t size);
 extern void kvstore_free(void* ptr);
@@ -53,20 +54,39 @@ extern void kvstore_free(void* ptr);
 
 #define ENABLE_NETWORK_SELECT NETWORK_NTYCO
 
-#define ENABLE_ARRAY_KENGINE 1
-#if ENABLE_ARRAY_KENGINE
 
-struct kvs_array_item {
-    char* key;
-    char* value;
-};
-#define KVS_ARRAY_SIZE 1024
+#define ENABLE_ARRAY_KVENGINE 1
+#define ENABLE_RBTREE_KVENGINE 1
+#define ENABLE_SKIPTABLE_KVENGINE 1
+#define ENABLE_HASH_KVENGINE 1
 
-extern int kvstore_array_set(char *key, char *value);
-extern char* kvstore_array_get(char *key);
-extern int kvstore_array_delete(char *key);
-extern int kvstore_array_modify(char *key, char *value);
+#if ENABLE_ARRAY_KVENGINE
 
+typedef struct array_s array_t;
+extern array_t Array;
+
+extern int kvstore_array_create(array_t *arr);
+extern void kvstore_array_destory(array_t *arr);
+extern int kvs_array_set(array_t *arr, char *key, char *value);
+extern char* kvs_array_get(array_t *arr, char *key);
+extern int kvs_array_delete(array_t *arr, char *key);
+extern int kvs_array_modify(array_t *arr, char *key, char *value);
+extern int kvs_array_count(array_t *arr);
+#endif
+
+
+#if ENABLE_RBTREE_KVENGINE
+
+typedef struct _rbtree retree_t;
+extern retree_t Tree;
+
+extern int kvstore_rbtree_create(retree_t *tree);
+extern void kvstore_rbtree_destory(retree_t *tree);
+extern int kvs_rbtree_set(retree_t *tree, char *key, char *value);
+extern char* kvs_rbtree_get(retree_t *tree, char *key);
+extern int kvs_rbtree_delete(retree_t *tree, char *key);
+extern int kvs_rbtree_modify(retree_t *tree, char *key, char *value);
+extern int kvs_rbtree_count(retree_t *tree);
 #endif
 
 #endif

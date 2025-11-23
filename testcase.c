@@ -194,7 +194,7 @@ void hash_testcase_5w_node(int connfd) {
 
 		char result[128] = {0};
 		sprintf(result, "%d", count - (i+1));
-		test_case(connfd, "HCOUNT", result, "RCOUNT");
+		test_case(connfd, "HCOUNT", result, "HCOUNT");
 
 	}
 	

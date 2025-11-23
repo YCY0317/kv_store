@@ -4,7 +4,8 @@
 
 const char *commands[] = {
     "SET", "GET", "DEL", "MOD", "COUNT",
-    "RSET", "RGET", "RDEL", "RMOD", "RCOUNT"
+    "RSET", "RGET", "RDEL", "RMOD", "RCOUNT",
+    "HSET", "HGET", "HDEL", "HMOD", "HCOUNT"
 };
 enum {
     KVS_CMD_START = 0,
@@ -19,6 +20,12 @@ enum {
     KVS_CMD_RDEL,
     KVS_CMD_RMOD,
     KVS_CMD_RCOUNT,
+
+    KVS_CMD_HSET,
+    KVS_CMD_HGET,
+    KVS_CMD_HDEL,
+    KVS_CMD_HMOD,
+    KVS_CMD_HCOUNT,
 
     KVS_CMD_SIZE
 };
@@ -66,6 +73,23 @@ int kvstore_rbtree_count(void) {
 }
 #endif
 
+#if ENABLE_HASH_KVENGINE
+int kvstore_hash_set(char *key, char *value) {
+    return kvs_hash_set(&Hash, key, value);
+}
+char* kvstore_hash_get(char *key) {
+    return kvs_hash_get(&Hash, key);
+}
+int kvstore_hash_delete(char *key) {
+    return kvs_hash_delete(&Hash, key);
+}
+int kvstore_hash_modify(char *key, char *value) {
+    return kvs_hash_modify(&Hash, key, value);
+}
+int kvstore_hash_count(void) {
+    return kvs_hash_count(&Hash);
+}
+#endif
 
 int kvstore_split_token(char *msg, char **tokens) {
     if(msg == NULL || tokens == NULL)
@@ -206,6 +230,62 @@ int kvstore_parser_protocol(struct conn_item *item, char **tokens, int count) {
 			}
             break;
         }
+        case KVS_CMD_HSET: {
+            int res = kvstore_hash_set(key, value);
+            if(!res) {
+                snprintf(msg, BUFFER_LENGTH, "SUCCESS");
+            }
+            else {
+                snprintf(msg, BUFFER_LENGTH, "FAILED");
+            }
+            break;
+        }
+        case KVS_CMD_HGET: {
+            char* val = kvstore_hash_get(key);
+            if(val) {
+                snprintf(msg, BUFFER_LENGTH, "%s", val);
+            }
+            else {
+                snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+            }
+            break;
+        }
+        case KVS_CMD_HDEL: {
+            int res = kvstore_hash_delete(key);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
+            break;
+        }
+        case KVS_CMD_HMOD: {
+            int res = kvstore_hash_modify(key, value);
+			if (res < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else if (res == 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "SUCCESS");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "NO EXIST");
+			}
+            break;
+        }
+        case KVS_CMD_HCOUNT: {
+            int count = kvstore_hash_count();
+            if (count < 0) {
+				snprintf(msg, BUFFER_LENGTH, "%s", "ERROR");
+			}
+            else {
+				snprintf(msg, BUFFER_LENGTH, "%d", count);
+			}
+            break;
+        }
         default: {
             printf("cmd: %s\n", commands[cmd]);
             assert(0);
@@ -240,7 +320,9 @@ int init_kvengine(void) {
 #if ENABLE_RBTREE_KVENGINE
     kvstore_rbtree_create(&Tree);
 #endif
-
+#if ENABLE_HASH_KVENGINE
+    kvstore_hash_create(&Hash);
+#endif
 }
 
 int exit_kvengine(void) {
@@ -249,6 +331,9 @@ int exit_kvengine(void) {
 #endif
 #if ENABLE_RBTREE_KVENGINE
     kvstore_rbtree_destory(&Tree);
+#endif
+#if ENABLE_HASH_KVENGINE
+    kvstore_hash_destory(&Hash);
 #endif
 }
 

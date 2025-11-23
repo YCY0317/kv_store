@@ -89,4 +89,19 @@ extern int kvs_rbtree_modify(retree_t *tree, char *key, char *value);
 extern int kvs_rbtree_count(retree_t *tree);
 #endif
 
+#if ENABLE_HASH_KVENGINE
+typedef struct hashtable_s hashtable_t;
+extern hashtable_t Hash;
+
+extern int kvstore_hash_create(hashtable_t *hash);
+extern void kvstore_hash_destory(hashtable_t *hash);
+extern int kvs_hash_set(hashtable_t *hash, char *key, char *value);
+extern char *kvs_hash_get(hashtable_t *hash, char *key);
+extern int kvs_hash_delete(hashtable_t *hash, char *key);
+extern int kvs_hash_modify(hashtable_t *hash, char *key, char *value);
+extern int kvs_hash_count(hashtable_t *hash);
+
+
+#endif
+
 #endif
